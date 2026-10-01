@@ -164,8 +164,6 @@ root@gamma:~# dig @192.221.5.3 k20.com +short
 192.221.4.2
 ```
 
-<img width="850" height="250" alt="Bukti Pengujian Soal 4" src="https://github.com/user-attachments/assets/placeholder-soal-4" />
-
 ---
 
 ## Soal 5
@@ -224,8 +222,6 @@ PING alpha.k20.com (192.221.1.2) 56(84) bytes of data.
 2 packets transmitted, 2 received, 0% packet loss, time 1024ms
 ```
 
-<img width="850" height="250" alt="Bukti Pengujian Soal 5" src="https://github.com/user-attachments/assets/placeholder-soal-5" />
-
 ---
 
 ## Soal 6
@@ -278,8 +274,6 @@ root@gamma:~# dig @192.221.5.2 k20.com AXFR
 ;; global options: +cmd
 ; Transfer failed.
 ```
-
-<img width="850" height="250" alt="Bukti Pengujian Soal 6" src="https://github.com/user-attachments/assets/placeholder-soal-6" />
 
 ---
 
@@ -345,8 +339,6 @@ root@delta:~# dig static.k20.com +short
 abbey.k20.com.
 192.221.2.2
 ```
-
-<img width="850" height="250" alt="Bukti Pengujian Soal 7" src="https://github.com/user-attachments/assets/placeholder-soal-7" />
 
 ---
 
@@ -471,8 +463,6 @@ root@gamma:~# host -t PTR 192.221.5.7
 7.5.221.192.in-addr.arpa domain name pointer molly.k20.com.
 ```
 
-<img width="850" height="250" alt="Bukti Pengujian Soal 8" src="https://github.com/user-attachments/assets/placeholder-soal-8" />
-
 ---
 
 ## Soal 9
@@ -530,8 +520,6 @@ Mengakses isi dokumen arsip:
 root@gamma:~# curl -s http://vault.k20.com/arsip/arsip_obladi.txt
 Arsip Rahasia The Mesh - Vault Obladi Node
 ```
-
-<img width="850" height="250" alt="Bukti Pengujian Soal 9" src="https://github.com/user-attachments/assets/placeholder-soal-9" />
 
 ---
 
@@ -617,8 +605,6 @@ root@gamma:~# curl -s http://oblada.k20.com/profil | grep -A 3 "Halaman Profil"
   <p>Peran: Dynamic Core Engine</p>
   <p>Node IP: 192.221.5.6</p>
 ```
-
-<img width="850" height="250" alt="Bukti Pengujian Soal 10" src="https://github.com/user-attachments/assets/placeholder-soal-10" />
 
 ---
 
@@ -713,8 +699,6 @@ root@gamma:~# curl -s http://abbey.k20.com/ | grep "Visitor IP detected:"
   <p>Visitor IP detected: 192.221.1.4</p>
 ```
 
-<img width="850" height="250" alt="Bukti Pengujian Soal 11" src="https://github.com/user-attachments/assets/placeholder-soal-11" />
-
 ---
 
 ## Soal 12
@@ -802,8 +786,6 @@ Content-Type: text/html
 </body>
 </html>
 ```
-
-<img width="850" height="250" alt="Bukti Pengujian Soal 12" src="https://github.com/user-attachments/assets/placeholder-soal-12" />
 
 ---
 
@@ -923,8 +905,6 @@ root@gamma:~# curl -s -L http://penny.k20.com/ | grep "Vault Static Repository (
 root@gamma:~# curl -s -L http://abbey.k20.com/ | grep "Core Dynamic Application"
   <h1>Core Dynamic Application (Node: oblada - 192.221.5.6)</h1>
 ```
-
-<img width="850" height="250" alt="Bukti Pengujian Soal 13" src="https://github.com/user-attachments/assets/placeholder-soal-13" />
 
 ---
 
