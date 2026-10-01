@@ -7,6 +7,57 @@
 
 ---
 
+## Soal 1
+
+Sebagai pusat kesadaran The Mesh, `rootkit` merentangkan koneksinya ke lima gerbang utama (Switch). Alokasi alamat IP dan default gateway ditetapkan untuk seluruh Entitas mulai dari operator (`alpha`, `beta`, `gamma`), penjaga directory (`prab`, `tedd`), gerbang penyaring (`abbey`, `penny`), hingga repository (`obladi`, `desmond`, `oblada`, `molly`) sesuai dengan topologi pembagian switch yang dirancang menggunakan prefix kelompok `192.221.X.X`.
+
+### Pembagian IP Address & Peran Node
+
+| Node | Interface | IP Address | Netmask | Gateway | Peran & Fungsi |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **rootkit** | `eth0-eth5` | `192.221.1.1` - `192.221.5.1` | `255.255.255.0` | NAT Gateway | Router Sentral / Gateway Utama |
+| **alpha** | `eth0` | `192.221.1.2` | `255.255.255.0` | `192.221.1.1` | Klien Sayap Kiri (Pengamat) |
+| **beta** | `eth0` | `192.221.1.3` | `255.255.255.0` | `192.221.1.1` | Klien Sayap Kiri (Pengamat) |
+| **gamma** | `eth0` | `192.221.1.4` | `255.255.255.0` | `192.221.1.1` | Klien Sayap Kiri (Pengamat) |
+| **abbey** | `eth0` | `192.221.2.2` | `255.255.255.0` | `192.221.2.1` | Reverse Proxy Core (Nginx) |
+| **delta** | `eth0` | `192.221.3.2` | `255.255.255.0` | `192.221.3.1` | Klien Sayap Kanan (Eksekutor) |
+| **epsilon** | `eth0` | `192.221.3.3` | `255.255.255.0` | `192.221.3.1` | Klien Sayap Kanan (Eksekutor) |
+| **penny** | `eth0` | `192.221.4.2` | `255.255.255.0` | `192.221.4.1` | Reverse Proxy Vault (Apache) |
+| **prab** | `eth0` | `192.221.5.2` | `255.255.255.0` | `192.221.5.1` | Authoritative DNS Master (ns1) |
+| **tedd** | `eth0` | `192.221.5.3` | `255.255.255.0` | `192.221.5.1` | Authoritative DNS Slave (ns2) |
+| **obladi** | `eth0` | `192.221.5.4` | `255.255.255.0` | `192.221.5.1` | Repositori Web Statis (Apache) |
+| **desmond**| `eth0` | `192.221.5.5` | `255.255.255.0` | `192.221.5.1` | Repositori Web Statis (Apache) |
+| **oblada** | `eth0` | `192.221.5.6` | `255.255.255.0` | `192.221.5.1` | Repositori Web Dinamis (Nginx + PHP) |
+| **molly** | `eth0` | `192.221.5.7` | `255.255.255.0` | `192.221.5.1` | Repositori Web Dinamis (Nginx + PHP) |
+
+---
+
+## Soal 2
+
+Membuka jalur menuju NAT dengan memastikan antarmuka WAN di router `rootkit` aktif dan mengonfigurasikan NAT agar meneruskan lalu lintas keluar bagi seluruh alamat internal ke internet publik.
+
+### Konfigurasi NAT pada Router (rootkit)
+
+Perintah aktivasi IP Forwarding dan IPTables MASQUERADE pada `rootkit`:
+```bash
+iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+sysctl -w net.ipv4.ip_forward=1
+```
+
+---
+
+## Soal 3
+
+Memastikan seluruh Entitas dapat saling terhubung dan berkomunikasi lintas jalur (routing internal via `rootkit` berfungsi). Untuk menghindari fragmentasi saat persiapan, setiap host non-router menambahkan resolver `192.168.122.1` di file `/etc/resolv.conf` saat antarmukanya aktif agar akses untuk mengunduh paket instalasi dari internet tersedia sejak awal beroperasi.
+
+### Konfigurasi Initial Resolver (/etc/resolv.conf)
+
+```text
+nameserver 192.168.122.1
+```
+
+---
+
 ## Soal 4
 
 Penjaga Direktori mulai menuliskan hukum The Mesh. Pada node `prab`, bangun zona `k20.com` sebagai authoritative dengan SOA yang menunjuk ke `prab.k20.com`, serta tambahkan catatan NS untuk `prab` dan `tedd`. Record A dibuat untuk `prab` (`192.221.5.2`) dan `tedd` (`192.221.5.3`), serta record apex `k20.com` yang mengarah ke gerbang aplikasi dinamis (`penny` - `192.221.4.2`). Aktifkan fitur notify dan allow-transfer ke `tedd`, lalu set forwarders ke `192.168.122.1`. Di node `tedd`, tarik zona `k20.com` dari master sebagai slave. Perbarui pula urutan resolver pada seluruh entitas non-router menjadi: IP `prab`, IP `tedd`, lalu `192.168.122.1`. Konfigurasi yang sama diterapkan untuk domain tanda-hubung `k-20.com`.
@@ -876,3 +927,334 @@ root@gamma:~# curl -s -L http://abbey.k20.com/ | grep "Core Dynamic Application"
 <img width="850" height="250" alt="Bukti Pengujian Soal 13" src="https://github.com/user-attachments/assets/placeholder-soal-13" />
 
 ---
+
+## Soal 14
+
+Memastikan access log pada setiap server web di area vault (`obladi`, `desmond`) maupun area core (`oblada`, `molly`) mencatat alamat IP asli milik client (pengunjung) yang diteruskan oleh gerbang, dan bukan mencatat IP dari `penny` (`192.221.4.2`) ataupun `abbey` (`192.221.2.2`).
+
+### 1. Konfigurasi Forward Header pada Gerbang (penny & abbey)
+
+Pada Apache `penny` (`/etc/apache2/sites-available/000-default.conf`):
+```apache
+RewriteEngine On
+RewriteRule .* - [E=CLIENT_IP:%{REMOTE_ADDR}]
+RequestHeader set X-Real-IP "%{CLIENT_IP}e"
+RequestHeader set X-Forwarded-For "%{CLIENT_IP}e"
+ProxyPreserveHost On
+```
+
+Pada Nginx `abbey` (`/etc/nginx/sites-available/proxy.conf`):
+```nginx
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+```
+
+### 2. Konfigurasi Real-IP pada Backend Vault (obladi & desmond - Apache)
+
+Mengaktifkan modul `remoteip` (`a2enmod remoteip`) dan konfigurasi `/etc/apache2/conf-available/remoteip.conf`:
+```apache
+RemoteIPHeader X-Forwarded-For
+RemoteIPHeader X-Real-IP
+RemoteIPInternalProxy 192.221.4.2 192.221.2.2
+LogFormat "%a %l %u %t "%r" %>s %b "%{Referer}i" "%{User-Agent}i"" proxy_combined
+```
+
+### 3. Konfigurasi Real-IP pada Backend Core (oblada & molly - Nginx)
+
+Mengonfigurasi `/etc/nginx/sites-available/core.conf`:
+```nginx
+set_real_ip_from 192.221.0.0/16;
+real_ip_header X-Real-IP;
+real_ip_recursive on;
+
+log_format proxy_log '$remote_addr - $remote_user [$time_local] "$request" '
+                     '$status $body_bytes_sent "$http_referer" "$http_user_agent"';
+access_log /var/log/nginx/access.log proxy_log;
+```
+
+### 4. Hasil Pengujian
+
+Pengecekan file log pada backend Vault (`obladi`) setelah request dari Klien `alpha` (`192.221.1.2`):
+```text
+root@obladi:~# tail -n 5 /var/log/apache2/access.log
+192.221.1.2 - - [30/Sep/2026:21:37:58 +0000] "GET / HTTP/1.1" 200 229 "-" "curl/8.14.1"
+```
+*(Terbukti mencatat IP asli milik Klien Alpha `192.221.1.2` dan bukan IP Penny `192.221.4.2`)*.
+
+---
+
+## Soal 15
+
+Pembuatan jalur proxy khusus yang berdiri sendiri:
+1. Pada `penny`, buat reverse proxy untuk path `/eternal` yang menyajikan directory `/var/www/eternal` dan mengeksekusi (rendering) file PHP.
+2. Pada `abbey`, buat jalur `/orion` yang menyajikan directory `/var/www/orion` secara murni statis tanpa perlu rendering PHP.
+
+### 1. Konfigurasi Path /eternal pada Penny (Apache)
+
+File `/etc/apache2/sites-available/000-default.conf`:
+```apache
+Alias /eternal /var/www/eternal
+<Directory /var/www/eternal>
+    Options +Indexes +FollowSymLinks +ExecCGI
+    AllowOverride All
+    Require all granted
+    DirectoryIndex index.php index.html
+</Directory>
+
+ProxyPass /eternal !
+```
+
+File `/var/www/eternal/index.php`:
+```php
+<!DOCTYPE html>
+<html>
+<head><title>Jalur Eternal - Penny</title></head>
+<body>
+  <h1>Jalur Proxy Khusus /eternal (Penny)</h1>
+  <p>Status PHP: <strong>EKSEKUSI PHP BERHASIL (DINAMIS)</strong></p>
+  <p>Waktu Server: <?php echo date('Y-m-d H:i:s'); ?></p>
+</body>
+</html>
+```
+
+### 2. Konfigurasi Path /orion pada Abbey (Nginx)
+
+File `/etc/nginx/sites-available/proxy.conf`:
+```nginx
+location /orion/ {
+    alias /var/www/orion/;
+    index index.html;
+}
+```
+
+File `/var/www/orion/index.html`:
+```html
+<!DOCTYPE html>
+<html>
+<head><title>Jalur Orion - Abbey</title></head>
+<body>
+  <h1>Jalur Proxy Khusus /orion (Abbey)</h1>
+  <p>Status Konten: <strong>MURNI STATIS (TANPA PHP)</strong></p>
+  <p>Disajikan langsung dari direktori /var/www/orion oleh Abbey Nginx.</p>
+</body>
+</html>
+```
+
+### 3. Hasil Pengujian
+
+Pengujian akses path `/eternal` dari Klien `alpha`:
+```text
+root@alpha:~# curl http://www.k-20.com/eternal/
+<!DOCTYPE html>
+<html>
+<head><title>Jalur Eternal - Penny</title></head>
+<body>
+  <h1>Jalur Proxy Khusus /eternal (Penny)</h1>
+  <p>Status PHP: <strong>EKSEKUSI PHP BERHASIL (DINAMIS)</strong></p>
+  <p>Waktu Server: 2026-09-30 22:17:45</p>
+</body>
+</html>
+```
+
+Pengujian akses path `/orion` dari Klien `alpha`:
+```text
+root@alpha:~# curl http://static.k-20.com/orion/
+<!DOCTYPE html>
+<html>
+<head><title>Jalur Orion - Abbey</title></head>
+<body>
+  <h1>Jalur Proxy Khusus /orion (Abbey)</h1>
+  <p>Status Konten: <strong>MURNI STATIS (TANPA PHP)</strong></p>
+  <p>Disajikan langsung dari direktori /var/www/orion oleh Abbey Nginx.</p>
+</body>
+</html>
+```
+
+---
+
+## Soal 16
+
+Pengujian stress test benchmark menggunakan ApacheBench (`ab`) dari Klien `alpha` dengan 250 requests dan concurrency 10 untuk masing-masing titik akhir: `www.k-20.com` dan `static.k-20.com`.
+
+### 1. Eksekusi ApacheBench pada Alpha
+
+```bash
+ab -n 250 -c 10 http://www.k-20.com/
+ab -n 250 -c 10 http://static.k-20.com/
+```
+
+### 2. Hasil Rangkuman Benchmark
+
+Pengujian `www.k-20.com` (Penny Apache -> Vault):
+```text
+Server Software:        Apache/2.4.68
+Server Hostname:        www.k-20.com
+Server Port:            80
+
+Concurrency Level:      10
+Time taken for tests:   0.125 seconds
+Complete requests:      250
+Failed requests:        0
+Total transferred:      124750 bytes
+HTML transferred:       57250 bytes
+Requests per second:    1998.93 [#/sec] (mean)
+Time per request:       5.003 [ms] (mean)
+```
+
+Pengujian `static.k-20.com` (Abbey Nginx -> Core):
+```text
+Server Software:        nginx
+Server Hostname:        static.k-20.com
+Server Port:            80
+
+Concurrency Level:      10
+Time taken for tests:   0.340 seconds
+Complete requests:      250
+Failed requests:        0
+Total transferred:      117000 bytes
+HTML transferred:       84500 bytes
+Requests per second:    735.15 [#/sec] (mean)
+Time per request:       13.603 [ms] (mean)
+```
+
+---
+
+## Soal 17
+
+Menambahkan TXT record pada DNS Master (`prab`) untuk seluruh klien sayap kiri dan sayap kanan (`alpha`, `beta`, `gamma`, `delta`, `epsilon`) yang mengembalikan teks berupa nama hostname masing-masing.
+
+### 1. Konfigurasi Zone File pada BIND9 (prab)
+
+Ditambahkan ke `/etc/bind/jarkom/k-20.com` dan `/etc/bind/jarkom/k20.com`:
+```dns
+alpha   IN      TXT     "alpha"
+beta    IN      TXT     "beta"
+gamma   IN      TXT     "gamma"
+delta   IN      TXT     "delta"
+epsilon IN      TXT     "epsilon"
+```
+
+### 2. Hasil Pengujian
+
+Query TXT record dari Klien `alpha`:
+```text
+root@alpha:~# dig TXT alpha.k-20.com +short
+"alpha"
+
+root@alpha:~# dig TXT beta.k-20.com +short
+"beta"
+
+root@alpha:~# dig TXT delta.k-20.com +short
+"delta"
+```
+
+---
+
+## Soal 18
+
+Mengubah A record DNS milik `abbey.k-20.com` ke alamat IP fiktif (`10.99.99.99`) dengan TTL 15 detik pada DNS Master `prab` serta menaikkan serial SOA untuk memverifikasi 3 fase pencarian DNS.
+
+### 1. Konfigurasi Zone File pada prab
+
+File `/etc/bind/jarkom/k-20.com`:
+```dns
+$TTL    604800
+@       IN      SOA     prab.k-20.com. admin.k-20.com. (
+                        2026100140 ; Serial (Naikkan SOA)
+                        ... )
+
+abbey   15  IN  A       10.99.99.99
+```
+
+### 2. Hasil Pengujian 3 Fase pencarian dari Klien (alpha)
+
+* **Fase 1 (Sebelum Perubahan):**
+  ```text
+  root@alpha:~# dig abbey.k-20.com +short
+  192.221.2.2
+  ```
+* **Fase 2 (Seketika Perubahan Terjadi, Jeda < 15 Detik):**
+  ```text
+  root@alpha:~# dig abbey.k-20.com +short
+  192.221.2.2
+  ```
+  *(Masih mengembalikan IP lama dari Cache DNS)*.
+* **Fase 3 (Setelah Batas Waktu TTL 15 Detik Habis):**
+  ```text
+  root@alpha:~# sleep 16 && dig abbey.k-20.com +short
+  10.99.99.99
+  ```
+  *(Berubah ke IP fiktif baru setelah cache expired)*.
+
+---
+
+## Soal 19
+
+Membuat CNAME record yang melakukan binding dari domain internal `outbound.k-20.com` menuju domain eksternal `http.badssl.com.` dan memastikan perintah `curl` mengembalikan konten halaman `http.badssl.com`.
+
+### 1. Konfigurasi CNAME Outbound & Forwarders pada BIND9 (prab)
+
+File `/etc/bind/named.conf.options`:
+```named
+options {
+    directory "/var/cache/bind";
+    forwarders {
+        192.168.122.1;
+        8.8.8.8;
+    };
+    allow-query { any; };
+    allow-recursion { any; };
+    recursion yes;
+};
+```
+
+File `/etc/bind/jarkom/k-20.com`:
+```dns
+outbound IN     CNAME   http.badssl.com.
+```
+
+### 2. Hasil Pengujian
+
+Query CNAME dan `curl` dari Klien `alpha`:
+```text
+root@alpha:~# dig CNAME outbound.k-20.com +short
+http.badssl.com.
+
+root@alpha:~# curl -L http://outbound.k-20.com
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>badssl.com</title>
+  ...
+</html>
+```
+
+---
+
+## Soal 20
+
+Memastikan semua service dan konfigurasi tetap berjalan normal dan berstatus autostart saat node di-restart, serta mengembalikan koordinat A record `abbey` ke IP asli (`192.221.2.2`).
+
+### 1. Revert Record IP Abbey pada prab
+
+File `/etc/bind/jarkom/k-20.com`:
+```dns
+abbey   IN      A       192.221.2.2
+```
+
+### 2. Verifikasi Autostart Service dan Konektivitas Akhir
+
+Pengujian akhir resolusi DNS dan HTTP dari Klien `alpha`:
+```text
+root@alpha:~# dig abbey.k-20.com +short
+192.221.2.2
+
+root@alpha:~# curl -s -I http://www.k-20.com/ | head -n 1
+HTTP/1.1 200 OK
+
+root@alpha:~# curl -s -I http://static.k-20.com/ | head -n 1
+HTTP/1.1 200 OK
+```
